@@ -62,7 +62,7 @@ jobs:
         id: bump
         run: |
           uv run bump-my-version bump ${{ inputs.bump }}
-          VERSION=$(grep -oP '(?<=version = ")([^"]+)' pyproject.toml)
+          VERSION=$(uv run bump-my-version show current_version)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Bumped to version $VERSION"
 
