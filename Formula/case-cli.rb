@@ -25,6 +25,8 @@ class CaseCli < Formula
 
   def install
     virtualenv_install_with_resources
+    bash_completion.install buildpath/"case_cli/completions/case-cli.bash" => "case-cli"
+    zsh_completion.install buildpath/"case_cli/completions/case-cli.zsh" => "_case-cli"
   end
 
   test do
