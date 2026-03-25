@@ -26,8 +26,34 @@ jobs:
       - name: Run tests
         run: uv run pytest --cov=case_cli -v
 
-  publish-pypi:
+  check-version:
     needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.check.outputs.should_publish }}
+      version: ${{ steps.check.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if version is new
+        id: check
+        run: |
+          VERSION=$(grep -oP '(?<=version = ")([^"]+)' pyproject.toml)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/case-cli/$VERSION/json")
+          if [ "$HTTP_STATUS" = "404" ]; then
+            echo "Version $VERSION not found on PyPI — will publish."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version $VERSION already exists on PyPI — skipping publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish-pypi:
+    needs: check-version
+    if: needs.check-version.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -46,7 +72,8 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
 
   update-homebrew:
-    needs: publish-pypi
+    needs: [check-version, publish-pypi]
+    if: needs.check-version.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -54,15 +81,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get version from pyproject.toml
-        id: version
-        run: |
-          VERSION=$(grep -oP '(?<=version = ")([^"]+)' pyproject.toml)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Wait for PyPI availability
         run: |
-          VERSION=${{ steps.version.outputs.version }}
+          VERSION=${{ needs.check-version.outputs.version }}
           echo "Waiting for case-cli $VERSION to be available on PyPI..."
           for i in $(seq 1 30); do
             if curl -sf "https://pypi.org/pypi/case-cli/$VERSION/json" > /dev/null 2>&1; then
@@ -78,7 +99,7 @@ jobs:
       - name: Get sdist SHA256
         id: sha
         run: |
-          VERSION=${{ steps.version.outputs.version }}
+          VERSION=${{ needs.check-version.outputs.version }}
           SHA=$(curl -sf "https://pypi.org/pypi/case-cli/$VERSION/json" | python3 -c "
           import sys, json
           data = json.load(sys.stdin)
@@ -94,7 +115,7 @@ jobs:
         with:
           github-token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           script: |
-            const version = '${{ steps.version.outputs.version }}';
+            const version = '${{ needs.check-version.outputs.version }}';
             const sha256 = '${{ steps.sha.outputs.sha256 }}';
             const owner = 'sigaocaue';
             const repo = 'homebrew-case-cli';
