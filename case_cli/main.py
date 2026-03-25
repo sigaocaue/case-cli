@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import pkgutil
 import sys
 
 from case_cli import __version__
@@ -17,6 +18,19 @@ def _setup_logging():
         level=getattr(logging, level, logging.WARNING),
         format="%(levelname)s: %(message)s",
     )
+
+
+def _print_completion(shell):
+    """Print the completion script for the given shell."""
+    filename = "case-cli.{}".format(shell)
+    data = pkgutil.get_data("case_cli", "completions/{}".format(filename))
+    if data is None:
+        print(
+            "Error: completion script '{}' not found in package.".format(filename),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print(data.decode("utf-8"))
 
 
 def main():
@@ -38,12 +52,23 @@ def main():
         help="Target case style ({})".format(", ".join(STYLE_NAMES)),
     )
     parser.add_argument(
+        "--completion",
+        metavar="SHELL",
+        choices=["bash", "zsh"],
+        help="Generate shell completion script (bash, zsh)",
+    )
+    parser.add_argument(
         "input",
         nargs="*",
         help="Input string to convert, or 'set <style>' to set default case",
     )
 
     args = parser.parse_args()
+
+    # Handle --completion flag
+    if args.completion:
+        _print_completion(args.completion)
+        return
     input_parts = args.input
 
     # Handle 'set' subcommand

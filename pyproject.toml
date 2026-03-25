@@ -47,3 +47,6 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["case_cli*"]
+
+[tool.setuptools.package-data]
+case_cli = ["completions/*"]
