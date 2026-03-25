@@ -1,167 +1,55 @@
 # case-cli
 
-![Python](https://img.shields.io/badge/python-3.6%2B-blue)
-![License](https://img.shields.io/github/license/sigaocaue/case-cli)
-![PyPI](https://img.shields.io/pypi/v/case-cli)
+[![Python](https://img.shields.io/badge/python-3.6%2B-blue)](https://www.python.org)
+[![License](https://img.shields.io/badge/License-MIT-brightgreen)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/case-cli)](https://pypi.org/project/case-cli)
 
-A command-line tool for converting strings between different case styles (snake_case, camelCase, PascalCase, and more).
+case-cli é uma ferramenta de linha de comando para normalizar cadeias de texto entre estilos diferentes (snake_case, camelCase, PascalCase e outros). Ela resolve o problema de ajustar nomes padronizados em scripts, documentação ou convenções de API sem depender de editores ou procedimentos manuais.
 
-## Installation
+## Funcionalidades
 
-### pip
+- Converte entradas de texto para 15 estilos de escrita, incluindo upper, lower, snake, kebab, constant, ada, cobol, train, header, sentence e dot.
+- Aceita nomes completos e apelidos (por exemplo, `snake` ou `s`), além de ser case-insensitive ao identificar o estilo desejado.
+- Permite persistir um estilo padrão via `case-cli set <style>`, armazenando a preferência em `~/.case-cli/config.json` ou no caminho configurado por `CASE_CLI_CONFIG_PATH`.
+- Sobrepõe o estilo padrão com a variável `CASE_CLI_DEFAULT_CASE` e ajusta o nível de log com `CASE_CLI_LOG_LEVEL`.
+- Arquitetura modular separa o parser CLI, mapeamento de estilos e lógica de cada estilo em módulos dedicados, facilitando a manutenção.
 
-```bash
-pip install case-cli
-```
-
-### pipx
-
-```bash
-pipx install case-cli
-```
-
-### Homebrew
-
-```bash
-brew tap sigaocaue/case-cli
-brew install case-cli
-```
-
-### asdf
-
-There is no official asdf plugin yet. To create one, follow the [asdf plugin creation guide](https://asdf-vm.com/plugins/create.html). The plugin should download the appropriate release from PyPI or GitHub and install it via `pip`.
-
-### apt / deb
-
-You can package `case-cli` as a `.deb` using [fpm](https://fpm.readthedocs.io/):
-
-```bash
-pip install case-cli
-fpm -s python -t deb case-cli
-sudo dpkg -i python-case-cli_*.deb
-```
-
-Alternatively, use [stdeb](https://github.com/astraw/stdeb):
-
-```bash
-pip install stdeb
-python setup.py --command-packages=stdeb.command bdist_deb
-sudo dpkg -i deb_dist/python3-case-cli_*.deb
-```
-
-### Windows
-
-```bash
-pip install case-cli
-```
-
-Support for `winget` is planned for a future release.
-
-## Usage
-
-### Convert with explicit case style
+## Demonstração
 
 ```bash
 case-cli "hello world" --case=snake
 # hello_world
 
-case-cli --case=pascal "hello world"
-# HelloWorld
+case-cli set pascal
+# Default case style set to 'pascal'.
 
-case-cli --case=pascal "hello world!"
-# HelloWorld!
-
-case-cli -c=snake "hello world"
-# hello_world
-
-# Using alias
-case-cli -c=s "hello world"
-# hello_world
+case-cli "another example"
+# AnotherExample
 ```
 
-### Set a default case style
+> Ao executar sem `--case`, o utilitário consulta primeiro `CASE_CLI_DEFAULT_CASE` e depois o arquivo de configuração em `~/.case-cli/config.json` para decidir o estilo.
 
-```bash
-case-cli set kebab
-# Default case style set to 'kebab'.
-```
+## Tecnologias e bibliotecas
 
-### Convert using the default case style
+- Python 3.6+ (padrão do pacote, conforme `pyproject.toml`)
+- `argparse` e `logging` (CLI e registros)
+- `json` e `os` (persistência da configuração padrão)
+- `pytest` e `pytest-cov` para validação automatizada (dependências de desenvolvimento)
 
-```bash
-case-cli "Hello World"
-# hello-world
-```
+## Organização do projeto
 
-### Flags
+- `case_cli/` – pacote principal com o ponto de entrada (`main.py`), dispatcher (`converter.py`), persistência (`config.py`) e implementações por estilo (`styles/`).
+- `tests/` – suíte de testes unitários para converter estilos e manipular configuração.
+- `pyproject.toml` – configuração de empacotamento e metadados do projeto.
 
-| Long flag    | Short flag | Description                      |
-|--------------|------------|----------------------------------|
-| `--case`     | `-c`       | Target case style                |
-| `--version`  | `-v`       | Show version                     |
-| `--help`     | `-h`       | Show help                        |
+## Variáveis de ambiente
 
-## Available Case Styles
+| Variável | Valor padrão | Descrição |
+| --- | --- | --- |
+| `CASE_CLI_CONFIG_PATH` | `~/.case-cli/config.json` | Caminho do arquivo que guarda o estilo padrão. |
+| `CASE_CLI_DEFAULT_CASE` | _(não definido)_ | Sobrepõe temporariamente o estilo padrão ao converter. |
+| `CASE_CLI_LOG_LEVEL` | `WARNING` | Ajusta o nível de log (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
 
-| Name       | Alias | Example Output                              |
-|------------|-------|---------------------------------------------|
-| `upper`    | `u`   | `STRING CASE UTILITY FOR CONVERTING`        |
-| `lower`    | `l`   | `string case utility for converting`        |
-| `snake`    | `s`   | `string_case_utility_for_converting`        |
-| `kebab`    | `k`   | `string-case-utility-for-converting`        |
-| `header`   | `h`   | `String-Case-Utility-For-Converting`        |
-| `camel`    | `c`   | `stringCaseUtilityForConverting`            |
-| `pascal`   | `p`   | `StringCaseUtilityForConverting`            |
-| `title`    | `t`   | `String Case Utility for Converting`        |
-| `random`   | `r`   | random mix of upper/lowercase               |
-| `constant` | --    | `STRING_CASE_UTILITY_FOR_CONVERTING`        |
-| `ada`      | --    | `String_Case_Utility_For_Converting`        |
-| `cobol`    | --    | `STRING-CASE-UTILITY-FOR-CONVERTING`        |
-| `train`    | --    | `String-Case-Utility-For-Converting`        |
-| `sentence` | --    | `String case utility for converting`        |
-| `dot`      | --    | `string.case.utility.for.converting`        |
+## Licença
 
-Both full names and aliases are accepted with the `--case` / `-c` flag.
-
-## Default Case Style
-
-You can set a default case style so you don't need to pass `--case` every time:
-
-```bash
-case-cli set snake
-```
-
-The default is saved to `~/.case-cli/config.json`.
-
-## Environment Variables
-
-| Variable               | Default                     | Description                                  |
-|------------------------|-----------------------------|----------------------------------------------|
-| `CASE_CLI_CONFIG_PATH` | `~/.case-cli/config.json`   | Custom path for the config file              |
-| `CASE_CLI_LOG_LEVEL`   | `WARNING`                   | Log level: DEBUG, INFO, WARNING, ERROR       |
-| `CASE_CLI_DEFAULT_CASE`| _(none)_                    | Overrides config file default case style     |
-
-## Development
-
-```bash
-# Install in editable mode with dev dependencies
-pip install -e ".[dev]"
-
-# Run all tests
-pytest
-
-# Run tests with coverage
-pytest --cov=case_cli
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Distribuído sob a licença MIT. Consulte o arquivo [`LICENSE`](LICENSE) para a redação completa e os direitos de uso.
