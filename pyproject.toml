@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A command-line tool for converting strings between different case styles"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 authors = [
     { name = "sigaocaue" },
 ]
@@ -19,8 +19,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -43,6 +41,7 @@ case-cli = "case_cli.main:main"
 dev = [
     "pytest>=6.0",
     "pytest-cov>=2.0",
+    "bump-my-version>=0.28",
 ]
 
 [tool.setuptools.packages.find]
@@ -50,3 +49,20 @@ include = ["case_cli*"]
 
 [tool.setuptools.package-data]
 case_cli = ["completions/*"]
+
+[tool.bumpversion]
+current_version = "0.1.0"
+commit = true
+tag = true
+tag_name = "v{new_version}"
+commit_message = "release: bump version {current_version} → {new_version}"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "case_cli/__init__.py"
+search = '__version__ = "{current_version}"'
+replace = '__version__ = "{new_version}"'

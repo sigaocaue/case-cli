@@ -1,8 +1,16 @@
 name: Release
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 jobs:
   test:
@@ -26,34 +34,43 @@ jobs:
       - name: Run tests
         run: uv run pytest --cov=case_cli -v
 
-  check-version:
+  bump-version:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
-      should_publish: ${{ steps.check.outputs.should_publish }}
-      version: ${{ steps.check.outputs.version }}
+      version: ${{ steps.bump.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check if version is new
-        id: check
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Configure git
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        id: bump
+        run: |
+          uv run bump-my-version bump ${{ inputs.bump }}
           VERSION=$(grep -oP '(?<=version = ")([^"]+)' pyproject.toml)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Bumped to version $VERSION"
 
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/case-cli/$VERSION/json")
-          if [ "$HTTP_STATUS" = "404" ]; then
-            echo "Version $VERSION not found on PyPI — will publish."
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Version $VERSION already exists on PyPI — skipping publish."
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Push commit and tag
+        run: git push origin main --follow-tags
 
   publish-pypi:
-    needs: check-version
-    if: needs.check-version.outputs.should_publish == 'true'
+    needs: bump-version
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -61,6 +78,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -72,18 +91,15 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
 
   update-homebrew:
-    needs: [check-version, publish-pypi]
-    if: needs.check-version.outputs.should_publish == 'true'
+    needs: [bump-version, publish-pypi]
     runs-on: ubuntu-latest
     permissions:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
-
       - name: Wait for PyPI availability
         run: |
-          VERSION=${{ needs.check-version.outputs.version }}
+          VERSION=${{ needs.bump-version.outputs.version }}
           echo "Waiting for case-cli $VERSION to be available on PyPI..."
           for i in $(seq 1 30); do
             if curl -sf "https://pypi.org/pypi/case-cli/$VERSION/json" > /dev/null 2>&1; then
@@ -99,7 +115,7 @@ jobs:
       - name: Get sdist SHA256
         id: sha
         run: |
-          VERSION=${{ needs.check-version.outputs.version }}
+          VERSION=${{ needs.bump-version.outputs.version }}
           SHA=$(curl -sf "https://pypi.org/pypi/case-cli/$VERSION/json" | python3 -c "
           import sys, json
           data = json.load(sys.stdin)
@@ -115,7 +131,7 @@ jobs:
         with:
           github-token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           script: |
-            const version = '${{ needs.check-version.outputs.version }}';
+            const version = '${{ needs.bump-version.outputs.version }}';
             const sha256 = '${{ steps.sha.outputs.sha256 }}';
             const owner = 'sigaocaue';
             const repo = 'homebrew-case-cli';
