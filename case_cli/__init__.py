@@ -8,4 +8,4 @@ if sys.version_info < (3, 8):
         "You are using Python {}.{}.".format(sys.version_info[0], sys.version_info[1])
     )
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
