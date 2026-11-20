@@ -39,8 +39,34 @@ class TestGetDefaultCase:
             f.write("not valid json")
         assert get_default_case() is None
 
+    def test_empty_environment_override_falls_back_to_file(self, tmp_config, monkeypatch):
+        set_default_case("snake")
+        monkeypatch.setenv("CASE_CLI_DEFAULT_CASE", "")
+        assert get_default_case() == "snake"
+
+    def test_handles_config_path_that_is_a_directory(self, tmp_config, caplog):
+        os.mkdir(tmp_config)
+        assert get_default_case() is None
+        assert "Failed to read config file" in caplog.text
+
 
 class TestSetDefaultCase:
+    def test_repairs_corrupt_config(self, tmp_config):
+        with open(tmp_config, "w") as f:
+            f.write("not valid json")
+        set_default_case("snake")
+        assert get_default_case() == "snake"
+
+    def test_preserves_other_settings(self, tmp_config):
+        with open(tmp_config, "w") as f:
+            json.dump({"default_case": "snake", "other": {"enabled": True}}, f)
+        set_default_case("kebab")
+        with open(tmp_config) as f:
+            assert json.load(f) == {
+                "default_case": "kebab",
+                "other": {"enabled": True},
+            }
+
     def test_creates_config_file(self, tmp_config):
         set_default_case("snake")
         assert os.path.exists(tmp_config)

@@ -48,6 +48,19 @@ class TestTokenize:
     def test_single_word(self):
         assert tokenize("hello") == ["hello"]
 
+    @pytest.mark.parametrize("text,expected", [
+        ("?!", ["?!"]),
+        ("XMLParser2\tfoo\nbar", ["xml", "parser2", "foo", "bar"]),
+        ("__foo...bar--baz", ["foo", "bar", "baz"]),
+    ])
+    def test_edge_cases(self, text, expected):
+        assert tokenize(text) == expected
+
+
+@pytest.mark.parametrize("style", [camel, sentence, title])
+def test_style_accepts_empty_tokens(style):
+    assert style.convert([]) == ""
+
 
 class TestUpperCase:
     def test_simple(self):
