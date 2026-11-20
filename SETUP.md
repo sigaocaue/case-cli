@@ -32,6 +32,7 @@ case-cli "outro texto"
 
 - Use `case-cli set <style>` para persistir o estilo padrão (salvo em `CASE_CLI_CONFIG_PATH` ou no arquivo padrão).
 - Sem `--case`, o CLI usa primeiro `CASE_CLI_DEFAULT_CASE` e depois o arquivo de configuração para decidir o estilo.
+- Para substituir espaços sem aplicar um estilo, use `case-cli "hello world" -s "_"`; use `--replace-spaces ""` para removê-los. Com `--case`, a substituição ocorre após a conversão. A opção afeta somente espaços comuns e, sem `--case`, ignora o estilo padrão.
 
 ## Testes
 

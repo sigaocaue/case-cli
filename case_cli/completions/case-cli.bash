@@ -24,7 +24,7 @@ _case_cli() {
 
     # Complete flags and subcommands
     if [[ "${cur}" == -* ]]; then
-        COMPREPLY=( $(compgen -W "--case -c --version -v --help -h --completion" -- "${cur}") )
+        COMPREPLY=( $(compgen -W "--case -c --replace-spaces -s --version -v --help -h --completion" -- "${cur}") )
         return 0
     fi
 

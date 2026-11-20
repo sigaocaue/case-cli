@@ -27,6 +27,7 @@ _case_cli() {
         '(-v --version)'{-v,--version}'[Show version]' \
         '(-h --help)'{-h,--help}'[Show help]' \
         '(-c --case)'{-c,--case}'[Target case style]:style:(( ${styles} ))' \
+        '(-s --replace-spaces)'{-s,--replace-spaces}'[Replace spaces]:replacement:' \
         '--completion[Generate shell completion script]:shell:(bash zsh)' \
         '1:command or input:->first_arg' \
         '*:input text:' \

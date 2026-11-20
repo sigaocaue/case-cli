@@ -52,6 +52,11 @@ def main():
         help="Target case style ({})".format(", ".join(STYLE_NAMES)),
     )
     parser.add_argument(
+        "-s", "--replace-spaces",
+        metavar="REPLACEMENT",
+        help="Replace spaces with REPLACEMENT (use an empty string to remove them)",
+    )
+    parser.add_argument(
         "--completion",
         metavar="SHELL",
         choices=["bash", "zsh"],
@@ -95,7 +100,7 @@ def main():
     case_style = args.case
 
     # If no --case flag, try default
-    if not case_style:
+    if not case_style and args.replace_spaces is None:
         case_style = get_default_case()
         if not case_style:
             print(
@@ -106,7 +111,9 @@ def main():
             sys.exit(1)
 
     try:
-        result = convert(text, case_style)
+        result = convert(text, case_style) if case_style else text
+        if args.replace_spaces is not None:
+            result = result.replace(" ", args.replace_spaces)
         print(result)
     except ValueError as e:
         print("Error: {}".format(e), file=sys.stderr)

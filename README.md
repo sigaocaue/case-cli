@@ -40,9 +40,12 @@ case-cli "another example"
 | `-h` | `--help` | — | Exibe as instruções de uso e as opções disponíveis. |
 | `-v` | `--version` | — | Exibe a versão instalada do `case-cli` e encerra. Serve para identificar qual versão está em uso. |
 | `-c` | `--case` | `STYLE` | Converte o texto de entrada para o estilo indicado. Use para escolher o formato de saída nesta execução; os estilos aceitos são os listados na ajuda da CLI. Se omitida, a ferramenta procura um padrão definido por `CASE_CLI_DEFAULT_CASE` ou `case-cli set <style>`. |
+| `-s` | `--replace-spaces` | `REPLACEMENT` | Substitui cada espaço pelo valor informado; use `""` para removê-los. Pode ser usada sem estilo ou após uma conversão com `--case`. |
 | — | `--completion` | `SHELL` | Gera as instruções para que o terminal ajude a completar opções e estilos ao pressionar Tab. Informe `bash` ou `zsh`, conforme o terminal usado. Veja como ativar abaixo. |
 
 Para converter um texto, escreva-o no comando, como em `case-cli "hello world" -c snake`. Para salvar um estilo como padrão, use `case-cli set snake`; assim, nas próximas conversões, você pode omitir a opção `-c`.
+
+Por exemplo, `case-cli "hello world" -s "_"` produz `hello_world`, e `case-cli "hello world" --replace-spaces ""` produz `helloworld`. A opção substitui somente espaços comuns. Quando usada sem `--case`, ela preserva o texto sem aplicar o estilo padrão; com `--case`, a substituição ocorre após a conversão.
 
 ### Completar comandos com Tab
 
