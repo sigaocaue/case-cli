@@ -6,15 +6,26 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  queue: max
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -23,68 +34,138 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --extra dev --locked
 
       - name: Run tests
-        run: uv run pytest --cov=case_cli -v
+        run: uv run --no-sync pytest --cov=case_cli -v
 
-  check-version:
+  version:
     needs: test
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'sigaocaue/case-cli'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
     outputs:
-      should_publish: ${{ steps.check.outputs.should_publish }}
-      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
+      version: ${{ steps.bump.outputs.version }}
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      - name: Check if version is new
-        id: check
+      - name: Select version increment
+        id: increment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pulls = await github.paginate(
+              github.rest.repos.listPullRequestsAssociatedWithCommit,
+              { owner, repo, commit_sha: context.sha }
+            );
+            const titles = pulls
+              .filter(pr => pr.merged_at && pr.base.ref === "main" &&
+                pr.base.repo.full_name === process.env.GITHUB_REPOSITORY)
+              .map(pr => pr.title);
+            const messages = (context.payload.commits || []).map(commit => commit.message);
+            const directives = [...titles, ...messages].join("\n").toLowerCase();
+            const bump = directives.includes("[release:major]") ? "major" :
+              directives.includes("[release:minor]") ? "minor" : "patch";
+            core.setOutput("bump", bump);
+
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Install development dependencies
+        run: uv sync --extra dev --locked
+
+      - name: Create or recover release commit and tag
+        id: bump
+        env:
+          BUMP: ${{ steps.increment.outputs.bump }}
         run: |
-          VERSION=$(python3 -c "import re; print(re.search(r'version\s*=\s*\"([^\"]+)\"', open('pyproject.toml').read()).group(1))")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/case-cli/$VERSION/json")
-          if [ "$HTTP_STATUS" = "404" ]; then
-            echo "Version $VERSION not found on PyPI — will publish."
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          git fetch origin main --tags
+          tag=$(git tag --list 'v*' --format='%(refname:short) %(contents:subject)' |
+            awk -v run="$GITHUB_RUN_ID" '$2 == "CI" && $3 == "run" && $4 == run && NF == 4 { print $1 }')
+          if [[ -n "$tag" ]]; then
+            git merge-base --is-ancestor "$tag^{}" origin/main
+            test "$(git rev-parse "$tag^{}^")" = "$GITHUB_SHA"
           else
-            echo "Version $VERSION already exists on PyPI — skipping publish."
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            if [[ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]]; then
+              echo "::error::main advanced past the tested commit. Release the latest main instead."
+              exit 1
+            fi
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            version=$(uv run --no-sync bump-my-version show new_version --increment "$BUMP")
+            status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+              "https://pypi.org/pypi/case-cli/$version/json")
+            if [[ "$status" != 404 ]]; then
+              echo "::error::Expected an unpublished version on PyPI for $version (HTTP $status)."
+              exit 1
+            fi
+
+            uv run --no-sync bump-my-version bump "$BUMP" --tag-message "CI run $GITHUB_RUN_ID"
+            tag="v$version"
+            test "$(git rev-parse "$tag^{}")" = "$(git rev-parse HEAD)"
+            git push --atomic origin HEAD:refs/heads/main "refs/tags/$tag"
           fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ needs.version.outputs.tag }}
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Build package
+        run: uv build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-dist-${{ needs.version.outputs.tag }}
+          path: dist/
+          overwrite: true
+          if-no-files-found: error
 
   publish-pypi:
-    needs: check-version
-    if: needs.check-version.outputs.should_publish == 'true'
+    needs: [version, build]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Build package
-        run: uv build
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-dist-${{ needs.version.outputs.tag }}
+          path: dist/
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@v1.13.0
+        with:
+          skip-existing: true
 
   update-homebrew:
-    needs: [check-version, publish-pypi]
-    if: needs.check-version.outputs.should_publish == 'true'
+    needs: [version, publish-pypi]
     runs-on: ubuntu-latest
     permissions:
       contents: read
 
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+
     steps:
       - name: Wait for PyPI availability
         run: |
-          VERSION=${{ needs.check-version.outputs.version }}
           echo "Waiting for case-cli $VERSION to be available on PyPI..."
           for i in $(seq 1 30); do
             if curl -sf "https://pypi.org/pypi/case-cli/$VERSION/json" > /dev/null 2>&1; then
@@ -97,27 +178,27 @@ jobs:
           echo "Package not available on PyPI after 5 minutes."
           exit 1
 
-      - name: Get sdist SHA256
-        id: sha
+      - name: Get published source distribution
+        id: sdist
         run: |
-          VERSION=${{ needs.check-version.outputs.version }}
-          SHA=$(curl -sf "https://pypi.org/pypi/case-cli/$VERSION/json" | python3 -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          for url_info in data['urls']:
-              if url_info['packagetype'] == 'sdist':
-                  print(url_info['digests']['sha256'])
-                  break
-          ")
-          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          set -o pipefail
+          curl -fsS "https://pypi.org/pypi/case-cli/$VERSION/json" | python3 -c '
+          import json, sys
+          sdist = next(file for file in json.load(sys.stdin)["urls"]
+                       if file["packagetype"] == "sdist")
+          print("url=" + sdist["url"])
+          print("sha256=" + sdist["digests"]["sha256"])
+          ' >> "$GITHUB_OUTPUT"
 
       - name: Update Homebrew formula
         uses: actions/github-script@v8
+        env:
+          SDIST_URL: ${{ steps.sdist.outputs.url }}
+          SDIST_SHA256: ${{ steps.sdist.outputs.sha256 }}
         with:
           github-token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           script: |
-            const version = '${{ needs.check-version.outputs.version }}';
-            const sha256 = '${{ steps.sha.outputs.sha256 }}';
+            const { VERSION: version, SDIST_URL: url, SDIST_SHA256: sha256 } = process.env;
             const owner = 'sigaocaue';
             const repo = 'homebrew-case-cli';
             const path = 'Formula/case-cli.rb';
@@ -130,7 +211,7 @@ jobs:
               '',
               '  desc "Command-line tool for converting strings between case styles"',
               '  homepage "https://github.com/sigaocaue/case-cli"',
-              `  url "https://files.pythonhosted.org/packages/source/c/case-cli/case_cli-${version}.tar.gz"`,
+              `  url "${url}"`,
               `  sha256 "${sha256}"`,
               '  license "MIT"',
               '',
@@ -149,15 +230,21 @@ jobs:
               '',
             ].join('\n');
 
-            // Check if file already exists
             let existingSha;
             try {
               const { data: existing } = await github.rest.repos.getContent({
                 owner, repo, path,
               });
               existingSha = existing.sha;
+              const current = Buffer.from(existing.content, "base64").toString("utf8");
+              const currentVersion = current.match(/^ {2}url ".*[-_](\d+\.\d+\.\d+)\.tar\.gz"$/m)?.[1];
+              if (currentVersion?.localeCompare(version, "en", { numeric: true }) > 0) {
+                core.notice(`Tap already points to newer version ${currentVersion}.`);
+                return;
+              }
+              if (current === formula) return;
             } catch (e) {
-              // File does not exist yet, will be created
+              if (e.status !== 404) throw e;
             }
 
             await github.rest.repos.createOrUpdateFileContents({

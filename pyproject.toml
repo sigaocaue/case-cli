@@ -66,3 +66,8 @@ replace = 'version = "{new_version}"'
 filename = "case_cli/__init__.py"
 search = '__version__ = "{current_version}"'
 replace = '__version__ = "{new_version}"'
+
+[[tool.bumpversion.files]]
+filename = "uv.lock"
+search = "name = \"case-cli\"\nversion = \"{current_version}\""
+replace = "name = \"case-cli\"\nversion = \"{new_version}\""
