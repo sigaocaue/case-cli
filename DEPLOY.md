@@ -4,10 +4,41 @@ O código e os workflows ficam em [sigaocaue/case-cli](https://github.com/sigaoc
 
 ## Pré-requisitos
 
-- Tenha acesso para integrar mudanças ao repositório principal. As regras da branch `main` e das tags `v*` precisam permitir que o GitHub Actions grave o commit de versão e a tag com `GITHUB_TOKEN`.
-- No PyPI, o projeto `case-cli` precisa autorizar o [Trusted Publisher do GitHub Actions](https://docs.pypi.org/trusted-publishers/adding-a-publisher/) com proprietário `sigaocaue`, repositório `case-cli`, arquivo `ci.yml` e ambiente `pypi`. O job usa OIDC.
-- No repositório principal, o secret `HOMEBREW_TAP_TOKEN` precisa permitir leitura e escrita do conteúdo de `sigaocaue/homebrew-case-cli`. Para um token de acesso pessoal com permissões granulares, use [Contents: Read and write](https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents) no repositório do tap.
+- Tenha acesso para integrar mudanças ao repositório principal e para conferir as configurações no GitHub e no PyPI.
 - No macOS, tenha o Homebrew instalado para validar a fórmula e a instalação.
+
+## Conferir a configuração antes de publicar
+
+### Permissões da main e das tags no GitHub
+
+1. Abra **Settings → Rulesets** no repositório `sigaocaue/case-cli`. Na barra lateral, **Rulesets** fica logo acima de **Branches**. Expanda o menu e abra a lista de regras.
+2. Abra as regras ativas que se aplicam à branch `main` ou às tags que começam com `v`, como `v0.1.2`. Uma regra pode usar um padrão, como `v*`, para abranger várias tags.
+3. Confira se alguma regra exige pull request para gravar na `main` ou restringe a atualização da branch ou a criação de tags. Se houver uma restrição, verifique se a automação tem uma exceção que permita essas operações. Confira também **Settings → Branches**, onde ficam as regras clássicas de proteção da branch.
+4. Em **Settings → Actions → General**, confirme que o GitHub Actions está habilitado. A permissão padrão pode ficar em leitura. O job `version` já pede `contents: write` para gravar o commit e a tag, e as regras do repositório ainda se aplicam.
+
+### Token do tap do Homebrew
+
+1. No repositório `sigaocaue/case-cli`, abra **Settings → Secrets and variables → Actions**. Em **Repository secrets**, procure `HOMEBREW_TAP_TOKEN`. Um *secret* guarda a credencial que o workflow usa.
+2. Nas [configurações de tokens do GitHub](https://github.com/settings/personal-access-tokens), confira se o token está ativo. Para um token com permissões granulares, o repositório selecionado deve incluir `sigaocaue/homebrew-case-cli` e a permissão **Contents** deve estar em **Read and write**.
+3. No repositório do tap, confira se as regras da branch padrão permitem que a conta dona do token grave a fórmula. Se o token tiver expirado ou sido substituído, atualize o valor do secret no repositório `case-cli`.
+
+### Trusted Publishing no PyPI
+
+Trusted Publishing autoriza o GitHub Actions a publicar no PyPI sem guardar uma senha ou um token do PyPI no repositório.
+
+1. No GitHub, abra **Settings → Environments → pypi** no repositório `case-cli`. Confira se o ambiente permite publicar a partir da `main`. Se houver aprovação obrigatória, o job de publicação vai aguardar essa aprovação.
+2. No PyPI, entre com uma conta mantenedora e abra **Seus projetos → case-cli → Gerenciar → Publicação**. Em **Adicionar um novo publicador**, selecione **GitHub** e preencha os campos abaixo.
+
+   | Campo | Valor |
+   | --- | --- |
+   | Proprietário | `sigaocaue` |
+   | Nome do repositório | `case-cli` |
+   | Nome do fluxo de trabalho | `ci.yml` |
+   | Environment name | `pypi` |
+
+3. Clique em **Adicionar** e confirme que `ci.yml` aparece na lista de publicadores. Se ainda houver uma entrada para `release.yml`, você pode removê-la depois que a primeira publicação por `ci.yml` funcionar.
+
+Na primeira publicação, acompanhe os jobs `version`, `publish-pypi` e `update-homebrew` para confirmar a gravação do commit e da tag, a publicação no PyPI e a atualização da fórmula, respectivamente.
 
 ## Publicar a partir da main
 
