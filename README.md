@@ -18,6 +18,8 @@ case-cli é uma ferramenta de linha de comando para normalizar cadeias de texto 
 
 Consulte o [SETUP.md](SETUP.md) para instruções de instalação, configuração do ambiente, execução e testes.
 
+Consulte o [DEPLOY.md](DEPLOY.md) para gerar novas versões, publicar no PyPI e atualizar o tap do Homebrew.
+
 ## Demonstração
 
 ```bash
