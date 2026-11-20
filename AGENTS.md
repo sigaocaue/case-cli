@@ -63,6 +63,7 @@ Estas regras são obrigatórias para todo o projeto.
 ### Documentação
 
 - Toda a documentação deve ser escrita em português-BR.
+- Sempre que uma implementação exigir alterações no `README.md` ou no `SETUP.md` da raiz do projeto, atualize os arquivos afetados na mesma execução para manter a documentação alinhada com a implementação.
 - Termos técnicos amplamente utilizados pela comunidade brasileira de desenvolvimento podem permanecer em inglês.
 - Exemplos: commit, branch, pull request, endpoint, payload, repository, service, middleware e deployment.
 
