@@ -14,6 +14,10 @@ case-cli é uma ferramenta de linha de comando para normalizar cadeias de texto 
 - Sobrepõe o estilo padrão com a variável `CASE_CLI_DEFAULT_CASE` e ajusta o nível de log com `CASE_CLI_LOG_LEVEL`.
 - Arquitetura modular separa o parser CLI, mapeamento de estilos e lógica de cada estilo em módulos dedicados, facilitando a manutenção.
 
+## Instalação e configuração
+
+Consulte o [SETUP.md](SETUP.md) para instruções de instalação, configuração do ambiente, execução e testes.
+
 ## Demonstração
 
 ```bash
@@ -28,6 +32,41 @@ case-cli "another example"
 ```
 
 > Ao executar sem `--case`, o utilitário consulta primeiro `CASE_CLI_DEFAULT_CASE` e depois o arquivo de configuração em `~/.case-cli/config.json` para decidir o estilo.
+
+## Flags da linha de comando
+
+| Forma curta | Forma longa | Argumento | O que faz e para que serve |
+| --- | --- | --- | --- |
+| `-h` | `--help` | — | Exibe as instruções de uso e as opções disponíveis. |
+| `-v` | `--version` | — | Exibe a versão instalada do `case-cli` e encerra. Serve para identificar qual versão está em uso. |
+| `-c` | `--case` | `STYLE` | Converte o texto de entrada para o estilo indicado. Use para escolher o formato de saída nesta execução; os estilos aceitos são os listados na ajuda da CLI. Se omitida, a ferramenta procura um padrão definido por `CASE_CLI_DEFAULT_CASE` ou `case-cli set <style>`. |
+| — | `--completion` | `SHELL` | Imprime o script de conclusão de comandos para `bash` ou `zsh`. Serve para habilitar sugestões e completar comandos no shell; informe `bash` ou `zsh`. |
+
+Para converter um texto, escreva-o no comando, como em `case-cli "hello world" -c snake`. Para salvar um estilo como padrão, use `case-cli set snake`; assim, nas próximas conversões, você pode omitir a opção `-c`.
+
+## Estilos aceitos
+
+Use qualquer valor da coluna **Estilo** ou seu apelido, quando disponível, no lugar de `STYLE`. A tabela mostra o resultado para o texto `hello world`:
+
+| Estilo | Apelido | Resultado |
+| --- | --- | --- |
+| `upper` | `u` | `HELLO WORLD` |
+| `lower` | `l` | `hello world` |
+| `snake` | `s` | `hello_world` |
+| `kebab` | `k` | `hello-world` |
+| `header` | `h` | `Hello-World` |
+| `camel` | `c` | `helloWorld` |
+| `pascal` | `p` | `HelloWorld` |
+| `title` | `t` | `Hello World` |
+| `random` | `r` | Letras maiúsculas e minúsculas escolhidas aleatoriamente, como `hELlo WoRLd` |
+| `constant` | — | `HELLO_WORLD` |
+| `ada` | — | `Hello_World` |
+| `cobol` | — | `HELLO-WORLD` |
+| `train` | — | `Hello-World` |
+| `sentence` | — | `Hello world` |
+| `dot` | — | `hello.world` |
+
+Os nomes e apelidos aceitam letras maiúsculas ou minúsculas. Em `title`, algumas palavras curtas em inglês, como `and` e `the`, ficam em minúsculas, exceto quando são a primeira palavra.
 
 ## Tecnologias e bibliotecas
 
